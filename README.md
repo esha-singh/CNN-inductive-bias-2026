@@ -31,7 +31,7 @@ Measures how the generalization gap $|\text{Excess}(f) + \sigma^2 - \hat{R}(f)|$
 ### 3. `cifar_regression_experiment.ipynb`
 **CIFAR-10 Regression: FCN vs LCN-WS**
 
-Compares generalization of FCN vs LCN-WS on a CIFAR-10 regression task with noisy labels ($y = \text{class\_label} + \mathcal{N}(0, 1)$, all 10 classes, $n = 1024$). Trains over multiple seeds and produces training curves (train loss and excess risk vs epochs with error bands) and activation analysis plots (path norm vs activation rate per filter).
+Compares generalization of FCN vs LCN-WS on a CIFAR-10 regression task with noisy labels (y = class_label + Gaussian noise, all 10 classes, n = 1024). Trains over multiple seeds and produces training curves (train loss and excess risk vs epochs with error bands) and activation analysis plots (path norm vs activation rate per filter).
 
 **Key result:** LCN-WS achieves lower excess risk than FCN on real image data, consistent with the theoretical prediction that local weight sharing provides an inductive bias advantage.
 
