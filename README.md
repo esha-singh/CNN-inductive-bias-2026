@@ -37,6 +37,27 @@ Compares generalization of FCN vs LCN-WS on a CIFAR-10 regression task with nois
 
 ---
 
+### 4. `Toy_Experiment.ipynb`
+**Synthetic Regression**
+
+Generates data from a ground-truth network with sparse connectivity, parameter sharing, and global average pooling (cone-based projections). Trains multiple architectures across varying dimensions, kernel sizes, and widths to study convergence behavior on this synthetic task.
+
+---
+
+### 5. `cone_cluster_label_assignment.ipynb`
+**Cone-Cluster Classification**
+
+Implements a cone-cluster classification task on the unit sphere where inputs have one signal patch and noise patches drawn from different cluster centers. Compares signal-based vs random label assignments using a single-layer CNN with cross-entropy loss, and analyzes learned representations via GMM clustering, PCA/LDA visualization, and Fisher selectivity scoring.
+
+---
+
+### 6. `parameter_sharing_experiment.ipynb`
+**Vocabulary Learning (Parameter Sharing Ablation)**
+
+Studies how CNN (shared weights), locally-connected (unshared weights), and fully-connected architectures recover vocabulary vectors from high-dimensional noisy inputs with randomly partitioned patches. Tracks training curves and L2 error to isolate the effect of parameter sharing on generalization.
+
+---
+
 ## Supporting Files
 
 Both `flat_interpolation_experiment.ipynb` and `generalization_experiment.ipynb` depend on:
