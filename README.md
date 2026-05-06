@@ -58,11 +58,6 @@ Demonstrates that architecture alone is not sufficient for generalization.
 
 Regression on CIFAR-10 with a ground-truth function that has local spatial structure.
 
-| Architecture | Parameters | Train Loss | Excess Risk |
-|---|---|---|---|
-| FCN | 3,147,777 | ≈ 0.00 | 0.479 |
-| LCN-WS (SCN) | 29,697 | 0.887 | 0.129 |
-
 - **Ground truth**: Two-layer SCN with K_TRUE=20, 3×3 patches, stride=1 (L=900 positions).
 - **Finding**: LCN-WS achieves 3.7× lower excess risk with 106× fewer parameters. FCN interpolates the noisy training labels but fails to recover the underlying local structure. Hessian sharpness (λ_max) is tracked throughout; both models approach 2/η.
 
