@@ -1,90 +1,158 @@
-# CNN Inductive Bias Experiments
+# Does Sparse Connectivity Improve Generalization? Convolutional Networks Below the Edge of Stability
 
-Experiments for the paper: **The Inductive Bias of Convolutional Neural Networks: Locality and Weight Sharing Reshape Implicit Regularization**
-
-Our empirical study is demonstrated as a series of Jupyter notebooks comparing LCN-WS vs FCN under the **Boundary of Edge of Stability (BEoS)** constraint. All experiments were run on a single GPU.
+This repository contains the code and experiments accompanying the paper. We study how sparse connectivity changes generalization below the Edge of Stability in two-layer ReLU networks, showing that sparse architectures process low-dimensional patch collections whose geometry governs the effective stability constraint — yielding non-vacuous generalization bounds in regimes where fully connected networks provably fail.
 
 ---
 
-## Notebooks
+## Repository Structure
 
-### 1. `flat_interpolation_experiment.ipynb`
-**Flat Interpolation**
-
-Demonstrates that architecture alone is insufficient for generalization. Even when LCN-WS satisfies BEoS, it can interpolate random labels when patches lack global structure. Each patch is sampled independently from the unit sphere, so the induced patch set has no shared structure across samples. Tracks training loss, Hessian sharpness ($\lambda_{\max}$), per-filter activation ratios, and weight norms. Produces training curves, sharpness plots with BEoS reference lines, activation scatter plots, and learning rate ablations.
-
-**Default config:** `m=10`, `J=8`, `d=80`, `K=1024`, `N=512`, `σ=1.0`
-
-**Key result:** BEoS is satisfied ($\lambda_{\max} \to 2/\eta$) while train loss drops below $\sigma^2$, confirming flat interpolation. Neurons specialize: activation rates drop from ~50% (random init) to selective patterns.
-
----
-
-### 2. `generalization_experiment.ipynb`
-**Generalization Gap (Sample Size & Dimension Ablation)**
-
-Measures how the generalization gap $|\text{Excess}(f) + \sigma^2 - \hat{R}(f)|$ scales with training size $n$ and ambient dimension $d$ for LCN-WS vs FCN. Sweeps over $d \in \{50, 100, 200, 400\}$ and $n \in \{64, 128, 256, 512, 1024\}$ with 5 seeds each, training for 500K epochs per run. Produces log-log gap-vs-$n$ plots (with $n^{-1/4}$ reference slopes), gap-vs-$d$ plots, and combined training curves comparing LCN-WS and FCN sharpness dynamics. Results save incrementally for resume support.
-
-**Key result:** LCN-WS generalization gap scales favorably with patch dimension $m$ rather than ambient dimension $d$, while FCN gap grows with $d$.
-
----
-
-### 3. `cifar_regression_experiment.ipynb`
-**CIFAR-10 Regression: FCN vs LCN-WS**
-
-Compares generalization of FCN vs LCN-WS on a CIFAR-10 regression task with noisy labels (y = class_label + Gaussian noise, all 10 classes, n = 1024). Trains over multiple seeds and produces training curves (train loss and excess risk vs epochs with error bands) and activation analysis plots (path norm vs activation rate per filter).
-
-**Key result:** LCN-WS achieves lower excess risk than FCN on real image data, consistent with the theoretical prediction that local weight sharing provides an inductive bias advantage.
+```
+.
+├── notebooks/
+│   ├── clean_patch_vs_image_depth.ipynb    # Patch geometry evaluation across 12 connectivity schemes
+│   ├── flat_interpolation_experiment.ipynb # Interpolation without generalization (Experiment 2)
+│   ├── cifar_regression_experiment.ipynb   # FCN vs. LCN-WS on CIFAR-10 regression
+│   ├── parameter_sharing_experiment.ipynb  # High-dimensional vocabulary learning experiment
+│   └── Toy_Experiment.ipynb               # Synthetic theory experiment with local view networks
+├── src/
+│   ├── data.py        # Sphere sampling, label generation, ground-truth functions
+│   ├── networks.py    # SharedCNN, SyntheticModel, FullyConnected, UnsharedCNN
+│   ├── training.py    # Training loops and optimization
+│   ├── metrics.py     # Loss, generalization gap, convergence detection
+│   ├── views.py       # Six view generation strategies (sliding window, disjoint blocks, etc.)
+│   └── __init__.py
+├── synthetic_teacher_experiments.py # Core model classes and data generation used by notebooks
+└── LICENSE
+```
 
 ---
 
-### 4. `Toy_Experiment.ipynb`
-**Synthetic Regression**
+## Key Experiments
 
-Generates data from a ground-truth network with sparse connectivity, parameter sharing, and global average pooling (cone-based projections). Trains multiple architectures across varying dimensions, kernel sizes, and widths to study convergence behavior on this synthetic task.
+### 1. Patchification Geometry Search (`notebooks/clean_patch_vs_image_depth.ipynb`)
 
----
+Evaluates 12 patch connectivity schemes on CIFAR-10 using two geometry metrics:
 
-### 5. `cone_cluster_label_assignment.ipynb`
-**Cone-Cluster Classification**
-
-Implements a cone-cluster classification task on the unit sphere where inputs have one signal patch and noise patches drawn from different cluster centers. Compares signal-based vs random label assignments using a single-layer CNN with cross-entropy loss, and analyzes learned representations via GMM clustering, PCA/LDA visualization, and Fisher selectivity scoring.
-
----
-
-### 6. `parameter_sharing_experiment.ipynb`
-**Vocabulary Learning (Parameter Sharing Ablation)**
-
-Studies how CNN (shared weights), locally-connected (unshared weights), and fully-connected architectures recover vocabulary vectors from high-dimensional noisy inputs with randomly partitioned patches. Tracks training curves and L2 error to isolate the effect of parameter sharing on generalization.
-
----
-
-## Supporting Files
-
-Both `flat_interpolation_experiment.ipynb` and `generalization_experiment.ipynb` depend on:
-
-| File | Role |
+| Metric | Interpretation |
 |---|---|
-| `synthetic_teacher_experiments.py` | Defines `SyntheticModel` (LCN-WS), `create_ground_truth_function`, `generate_views`, `ViewStrategy` enum |
-| `src/__init__.py` | Package init for `src` module |
-| `src/networks.py` | Defines `FullyConnectedBaseline` (FCN), `SharedCNN` |
-| `src/data.py` | Sphere data generation utilities |
-| `src/views.py` | View/patch extraction logic |
-| `src/training.py` | Training loop utilities |
-| `src/metrics.py` | Metric computation (excess risk, generalization gap, sharpness) |
-| `pyhessian` *(optional)* | External library for exact Hessian computation; falls back to power iteration if not installed |
+| PCA elbow@90% (lower is better) | Effective intrinsic dimensionality of the patch distribution |
+| Tukey half-space depth area (higher is better) | Concentration of the patch point cloud; harder to shatter |
 
-`cifar_regression_experiment.ipynb` is self-contained — only uses `torchvision` (CIFAR-10 data auto-downloaded to `data/`).
+**Schemes tested**: Conv (baseline), NonOverlap, JitteredGrid, RandomLocal, GlobalShuffle (negative control), Hex, Voronoi, Radial, LargeKernelSparse, MultiScale, Cross, RandomPlacement.
+
+**Key result**: Five non-convolutional schemes (MultiScale, Voronoi, NonOverlap, Radial, JitteredGrid) match or exceed Conv on both metrics. GlobalShuffle collapses to image-space geometry. Locality — sampling spatially contiguous pixels — is the decisive factor.
 
 ---
 
-## Shared Architecture
+### 2. Flat Interpolation Experiment (`notebooks/flat_interpolation_experiment.ipynb`)
 
-**LCN-WS** (Locally Connected Network with Weight Sharing):
-$$f(x) = \sum_k v_k \cdot \frac{1}{L} \sum_{\ell} \text{ReLU}(w_k^\top x^{(\ell)} - b_k) + \beta$$
+Demonstrates that architecture alone is not sufficient for generalization.
 
-**FCN** (Fully Connected Network):
-$$f(x) = \sum_k v_k \cdot \text{ReLU}(w_k^\top x - b_k) + \beta$$
+- **Data**: Each patch `x^(j) ~ S^{m-1}` independently (patch-wise sphere); patches carry no shared spatial structure.
+- **Model**: LCN-WS (K=1024, J=8 disjoint patches, m=10).
+- **Finding**: LCN-WS interpolates (train loss → 0) while remaining at the edge of stability (λ_max(∇²L) ≈ 2/η), yet excess risk remains high. Without distributional alignment between architecture and data, interpolation does not imply generalization.
 
-Key: LCN-WS operates in patch space $\mathbb{R}^m$ ($m \ll d$), while FCN sees the full ambient space $\mathbb{R}^d$.
+---
 
-**BEoS constraint:** $\lambda_{\max}(\nabla^2 \mathcal{L}(\theta)) \leq 2/\eta$, enforced implicitly by gradient descent with learning rate $\eta$.
+### 3. CIFAR-10 Regression: FCN vs. LCN-WS (`notebooks/cifar_regression_experiment.ipynb`)
+
+Regression on CIFAR-10 with a ground-truth function that has local spatial structure.
+
+| Architecture | Parameters | Train Loss | Excess Risk |
+|---|---|---|---|
+| FCN | 3,147,777 | ≈ 0.00 | 0.479 |
+| LCN-WS (SCN) | 29,697 | 0.887 | 0.129 |
+
+- **Ground truth**: Two-layer SCN with K_TRUE=20, 3×3 patches, stride=1 (L=900 positions).
+- **Finding**: LCN-WS achieves 3.7× lower excess risk with 106× fewer parameters. FCN interpolates the noisy training labels but fails to recover the underlying local structure. Hessian sharpness (λ_max) is tracked throughout; both models approach 2/η.
+
+---
+
+### 4. Parameter Sharing Experiment (`notebooks/parameter_sharing_experiment.ipynb`)
+
+Studies how different architectures learn representations in a high-dimensional vocabulary detection task, where inputs are D-dimensional vectors constructed from a random vocabulary on S^{m-1}. Isolates the effect of parameter sharing on representation learning.
+
+---
+
+### 5. Synthetic Theory Experiment (`notebooks/Toy_Experiment.ipynb`)
+
+Implements the core synthetic setup from the paper using local view networks on spherical data. Covers data generation, the ground-truth local view function, and training dynamics on controlled synthetic settings.
+
+---
+
+## Setup
+
+### Requirements
+
+```
+python >= 3.9
+torch >= 2.0
+torchvision
+numpy
+scipy
+matplotlib
+pandas
+tqdm
+```
+
+Install dependencies:
+
+```bash
+pip install torch torchvision numpy scipy matplotlib pandas tqdm
+```
+
+CIFAR-10 is downloaded automatically via `torchvision.datasets.CIFAR10` on first run.
+
+### Running the Experiments
+
+Each experiment is a self-contained Jupyter notebook. Launch with:
+
+```bash
+jupyter notebook
+```
+
+1. `notebooks/clean_patch_vs_image_depth.ipynb` — patch geometry search
+2. `notebooks/flat_interpolation_experiment.ipynb` — interpolation without generalization
+3. `notebooks/cifar_regression_experiment.ipynb` — FCN vs. LCN-WS on CIFAR-10
+4. `notebooks/parameter_sharing_experiment.ipynb` — parameter sharing study
+5. `notebooks/Toy_Experiment.ipynb` — synthetic theory experiment
+
+GPU is recommended for the geometry search and CIFAR-10 experiments. Synthetic experiments run on CPU.
+
+---
+
+## Source Package (`src/`)
+
+| Module | Contents |
+|---|---|
+| `data.py` | Sphere sampling, noisy label generation, ground-truth LCN teacher |
+| `networks.py` | `SharedCNN` (LCN-WS), `SyntheticModel`, `FullyConnected`, `UnsharedCNN` |
+| `training.py` | Training loops with loss, excess risk, and Hessian tracking |
+| `metrics.py` | Generalization gap, convergence detection, metrics dataclass |
+| `views.py` | Six view strategies: sliding window, random subsets, disjoint blocks, random overlapping, hierarchical, dense sliding |
+
+`synthetic_teacher_experiments.py` at the root provides additional model classes and data generation utilities used directly by the notebooks.
+
+---
+
+## Generalization Gap Definition
+
+Throughout all experiments, the generalization gap is defined as:
+
+$$\widehat{\text{Gen}}(f, \mathcal{D}) = \left| \widehat{\text{Excess}}(f) + \sigma^2 - \hat{R}_{\mathcal{D}}(f) \right|$$
+
+where $\hat{R}_{\mathcal{D}}(f)$ is the empirical train loss on noisy labels, $\widehat{\text{Excess}}(f)$ is the MSE against clean test labels, and $\sigma^2$ is the label noise variance.
+
+---
+
+## Geometry Metrics
+
+**PCA effective rank** (elbow@90%): the number of principal components needed to explain 90% of variance in the patch distribution. Lower values indicate a more structured, lower-dimensional point cloud.
+
+**Tukey half-space depth area**: for a query patch $x$, the depth is $\min_{u \in S^{K-1}} \min(F_u(u^\top x), 1 - F_u(u^\top x))$ where $F_u$ is the CDF of projections of the reference set onto $u$. We report $\int_0^{0.5} \Psi(t)\, dt$ where $\Psi(t) = P(\text{depth} \geq t)$. Higher values indicate a more concentrated distribution that is harder to shatter.
+
+---
+
+## License
+
+MIT License. See `LICENSE` for details.
