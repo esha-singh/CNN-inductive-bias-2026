@@ -64,9 +64,9 @@ Regression on CIFAR-10 with a ground-truth function that has local spatial struc
 
 ---
 
-### 4. Parameter Sharing Experiment (`notebooks/parameter_sharing_experiment.ipynb`)
+### 4. Patch Geometry vs. Image Space (`notebooks/clean_patch_vs_image_depth.ipynb`)
 
-Studies how different architectures learn representations in a high-dimensional vocabulary detection task, where inputs are D-dimensional vectors constructed from a random vocabulary on S^{m-1}. Isolates the effect of parameter sharing on representation learning.
+Compares the Tukey half-space depth of conv patch distributions against full image-space distributions, establishing that local patches occupy a fundamentally more concentrated region of the feature space — the geometric basis for the generalization advantage.
 
 ---
 
