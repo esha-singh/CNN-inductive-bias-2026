@@ -13,6 +13,8 @@ This repository contains the code and experiments accompanying the paper. We stu
 │   ├── flat_interpolation_experiment.ipynb # Interpolation without generalization (Experiment 2)
 │   ├── cifar_regression_experiment.ipynb   # FCN vs. LCN-WS on CIFAR-10 regression
 │   ├── parameter_sharing_experiment.ipynb  # High-dimensional vocabulary learning experiment
+│   ├── unshared_scn_scaling.ipynb          # Generalization gap scaling for unshared SCN (n and d sweep)
+│   ├── unshared_scn_single_patch.ipynb     # Fixed L=10 ablation: gap vs n across d values
 │   └── Toy_Experiment.ipynb               # Synthetic theory experiment with local view networks
 ├── src/
 │   ├── data.py        # Sphere sampling, label generation, ground-truth functions

@@ -347,52 +347,36 @@ class UnsharedCNNWithH(nn.Module):
         self.L = H.shape[0]
         self.m = H.shape[1]
 
-        # Register H as buffer
         self.register_buffer('H', torch.from_numpy(H).long())
 
-        # INDEPENDENT parameters for each view (no sharing!)
-        self.W_list = nn.ModuleList([
-            nn.Linear(self.m, K, bias=False) for _ in range(self.L)
-        ])
-        self.b_list = nn.ParameterList([
-            nn.Parameter(torch.zeros(K)) for _ in range(self.L)
-        ])
+        # Store all view weights as a single tensor [L, K, m] — avoids a
+        # Python loop in forward() and lets the GPU run one batched matmul.
+        self.W = nn.Parameter(torch.empty(self.L, K, self.m))
+        self.b = nn.Parameter(torch.zeros(self.L, K))
 
-        # Shared readout (same as SyntheticModel)
-        self.v = nn.Parameter(torch.randn(K) / np.sqrt(K))
+        # Shared readout
+        self.v    = nn.Parameter(torch.randn(K) / np.sqrt(K))
         self.beta = nn.Parameter(torch.zeros(1))
 
-        # Initialize with Kaiming
-        for W in self.W_list:
-            nn.init.kaiming_normal_(W.weight, mode='fan_in', nonlinearity='relu')
+        # Kaiming init per view (fan_in = m)
+        nn.init.kaiming_normal_(self.W, mode='fan_in', nonlinearity='relu')
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass.
-
         Args:
-            X: Input (batch_size, d)
-
+            X: (N, d)
         Returns:
-            Output (batch_size,)
+            (N,)
         """
-        N = X.shape[0]
+        # patches: (N, L, m)
+        patches = X[:, self.H]
 
-        # Process each view with its own parameters
-        view_outputs = []
-        for l in range(self.L):
-            # Extract view l: (N, m)
-            x_view = X[:, self.H[l]]
+        # einsum: (N, L, m) x (L, K, m) -> (N, L, K)
+        h = torch.einsum('nlm,lkm->nlk', patches, self.W) - self.b
 
-            # Apply view-specific filters: (N, K)
-            h = self.W_list[l](x_view) - self.b_list[l]
-            h = F.relu(h)
-            view_outputs.append(h)
+        # average pool over views: (N, K)
+        pooled = F.relu(h).mean(dim=1)
 
-        # Stack and average pool: (N, K)
-        pooled = torch.stack(view_outputs, dim=1).mean(dim=1)
-
-        # Output: (N,)
         return (pooled * self.v).sum(dim=1) + self.beta
 
 
